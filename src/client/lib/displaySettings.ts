@@ -118,6 +118,50 @@ export function useShowSpiceLevels(): boolean {
   return value
 }
 
+// ── 핫 페퍼 분석 임계값 (커밋 수) ───────────────────────────
+// 사용자가 직접 "어디까지 분석할지" 조절. 큰 레포에서 too_large 가드와 직접 연동.
+const MAX_PEPPER_LS_KEY = 'pepper.maxPepperCommits'
+const MAX_PEPPER_EVENT = 'pepper:maxPepperCommits-changed'
+export const MAX_PEPPER_MIN = 1000
+export const MAX_PEPPER_MAX = 50000
+export const MAX_PEPPER_DEFAULT = 10000
+export const MAX_PEPPER_STEP = 1000
+
+export function getMaxPepperCommits(): number {
+  try {
+    const raw = localStorage.getItem(MAX_PEPPER_LS_KEY)
+    if (raw === null) return MAX_PEPPER_DEFAULT
+    const n = parseInt(raw, 10)
+    if (!Number.isFinite(n)) return MAX_PEPPER_DEFAULT
+    return Math.max(MAX_PEPPER_MIN, Math.min(MAX_PEPPER_MAX, n))
+  } catch {
+    return MAX_PEPPER_DEFAULT
+  }
+}
+
+export function setMaxPepperCommits(value: number): void {
+  const clamped = Math.max(MAX_PEPPER_MIN, Math.min(MAX_PEPPER_MAX, Math.round(value)))
+  try { localStorage.setItem(MAX_PEPPER_LS_KEY, String(clamped)) } catch {}
+  window.dispatchEvent(new CustomEvent(MAX_PEPPER_EVENT, { detail: clamped }))
+}
+
+export function useMaxPepperCommits(): number {
+  const [value, setValue] = useState<number>(getMaxPepperCommits)
+  useEffect(() => {
+    const handler = () => setValue(getMaxPepperCommits())
+    window.addEventListener(MAX_PEPPER_EVENT, handler)
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === MAX_PEPPER_LS_KEY) setValue(getMaxPepperCommits())
+    }
+    window.addEventListener('storage', storageHandler)
+    return () => {
+      window.removeEventListener(MAX_PEPPER_EVENT, handler)
+      window.removeEventListener('storage', storageHandler)
+    }
+  }, [])
+  return value
+}
+
 /** 앱 부팅 시 1회 호출 — :root에 CSS var 동기화 */
 export function initDisplaySettings(): void {
   const py = getRowPaddingY()

@@ -1,6 +1,6 @@
 mod ai;
-mod forensics;
 mod git;
+mod pepper;
 mod recent;
 mod stash;
 mod symbols;
@@ -9,12 +9,12 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use ai::AiServerHandle;
-use forensics::CachedScan;
+use pepper::CachedPepperScan;
 
 #[derive(Default)]
 pub struct AppState {
     pub repo: Mutex<Option<PathBuf>>,
-    pub forensics_cache: Mutex<Option<CachedScan>>,
+    pub pepper_cache: Mutex<Option<CachedPepperScan>>,
     pub ai_server: Mutex<Option<AiServerHandle>>,
 }
 
@@ -68,10 +68,7 @@ pub fn run() {
             git::get_file_history,
             git::get_file_tree,
             git::get_directory_children,
-            forensics::get_heatmap,
-            forensics::get_hotspots,
-            forensics::get_trend,
-            forensics::get_contributors,
+            pepper::get_pepper_scores,
             recent::get_recent_repos,
             recent::remove_recent_repo,
             recent::clear_recent_repos,

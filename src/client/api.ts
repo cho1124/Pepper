@@ -67,41 +67,18 @@ export interface CommitResult {
   summary: unknown
 }
 
-// Forensics types (loose — UI는 필요한 필드만 읽음)
-export interface HeatmapEntry {
-  path: string
-  changes: number
-  insertions: number
-  deletions: number
-  lastModified: string
-  authors: string[]
-}
-
-export interface HotspotEntry {
+// 핫 페퍼 배지용 슬림 응답 (forensics 통째 대체)
+export interface PepperEntry {
   path: string
   score: number
-  changes: number
-  uniqueAuthors: number
-  avgChangesPerCommit: number
-  recentActivity: number
 }
 
-export interface TrendBucket {
-  label: string
-  startDate: string
-  endDate: string
-  commits: number
-  filesChanged: number
-  insertions: number
-  deletions: number
-}
-
-export interface ContributorInfo {
-  name: string
-  email: string
-  commits: number
-  filesOwned: string[]
-  topFiles: { path: string; changes: number }[]
+export interface PepperResult {
+  scores: PepperEntry[]
+  /** max_commits 초과로 분석을 건너뛴 경우 true. */
+  tooLarge: boolean
+  /** since=days 범위 안의 총 커밋 수. */
+  totalCommits: number
 }
 
 export interface RecentRepo {
@@ -124,13 +101,6 @@ export interface Symbol {
   startLine: number
   endLine: number
 }
-
-// Forensics progress event (Phase 7-1)
-export type ProgressEvent =
-  | { stage: 'cacheHit' }
-  | { stage: 'counting' }
-  | { stage: 'scanning'; current: number; total: number }
-  | { stage: 'aggregating' }
 
 // Local AI 다운로드 진행 (Phase 11-B)
 export type DownloadProgress =
@@ -159,12 +129,6 @@ export interface AiStatus {
 }
 
 // ───── API ──────────────────────────────────────────────
-
-function mkProgressChannel(handler?: (e: ProgressEvent) => void): Channel<ProgressEvent> {
-  const ch = new Channel<ProgressEvent>()
-  if (handler) ch.onmessage = handler
-  return ch
-}
 
 export const api = {
   openRepo: (path: string) => call<RepoInfo>('open_repo', { path }),
@@ -263,33 +227,12 @@ export const api = {
 
   clearRecentRepos: () => call<void>('clear_recent_repos'),
 
-  // ── Forensics (with progress streaming) ─────────────
-  getHeatmap: (opts?: { days?: number; onProgress?: (e: ProgressEvent) => void }) =>
-    call<HeatmapEntry[]>('get_heatmap', {
+  // ── 핫 페퍼 배지용 슬림 백엔드 ─────────────────────
+  getPepperScores: (opts?: { limit?: number; days?: number; maxCommits?: number }) =>
+    call<PepperResult>('get_pepper_scores', {
+      limit: opts?.limit ?? 1000,
       days: opts?.days ?? 90,
-      onProgress: mkProgressChannel(opts?.onProgress),
-    }),
-
-  getHotspots: (opts?: { limit?: number; onProgress?: (e: ProgressEvent) => void }) =>
-    call<HotspotEntry[]>('get_hotspots', {
-      limit: opts?.limit ?? 20,
-      onProgress: mkProgressChannel(opts?.onProgress),
-    }),
-
-  getTrend: (opts?: {
-    days?: number
-    buckets?: number
-    onProgress?: (e: ProgressEvent) => void
-  }) =>
-    call<TrendBucket[]>('get_trend', {
-      days: opts?.days ?? 180,
-      buckets: opts?.buckets ?? 12,
-      onProgress: mkProgressChannel(opts?.onProgress),
-    }),
-
-  getContributors: (opts?: { onProgress?: (e: ProgressEvent) => void }) =>
-    call<ContributorInfo[]>('get_contributors', {
-      onProgress: mkProgressChannel(opts?.onProgress),
+      maxCommits: opts?.maxCommits ?? 10000,
     }),
 
   // ── Stash ────────────────────────────────────────────

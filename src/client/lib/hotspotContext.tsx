@@ -1,19 +1,19 @@
 import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from 'react'
 import { api } from '../api'
+import { useMaxPepperCommits } from './displaySettings'
 
 /**
- * 핫 페퍼 배지용 핫스팟 score map.
+ * 핫 페퍼 배지용 score map.
  *
- * 백엔드 `get_hotspots` 의 score 공식
- * `changes × 3 + authors × 5 + churn × 0.01 + recent × 10`
- * 을 그대로 재사용. limit 을 크게(1000) 호출해서 전체 파일 분포를 받음.
+ * 백엔드 `get_pepper_scores` (페퍼 전용 슬림 명령) 에서 score 분포를 받음.
+ * score 공식: `changes × 3 + authors × 5 + churn × 0.01 + recent × 10`.
  *
  * Percentile 기반 매운맛 등급:
  *  - level 1 (🌶️)   : 상위 33%
  *  - level 2 (🌶️🌶️) : 상위 10%
  *  - level 3 (🌶️🌶️🌶️): 상위 3%
  *
- * 페퍼 Lean Principle 부합: 새 IPC X, 새 데이터 X, 기존 forensics 캐시 재활용.
+ * 큰 레포는 백엔드가 `tooLarge=true` 로 빈 결과 반환 → 배지 표시 안 됨.
  */
 
 export type SpiceLevel = 0 | 1 | 2 | 3
@@ -23,11 +23,17 @@ interface HotspotContextValue {
   getLevel: (path: string) => SpiceLevel
   /** 최초 로드 중 여부 (UI 에서 사용 안 해도 됨 — silent fail) */
   loading: boolean
+  /** 백엔드 가드(max_commits 초과)로 분석을 건너뛴 상태 */
+  tooLarge: boolean
+  /** 현재 레포의 since=days 범위 커밋 수 (가드 판정에 쓰인 값) */
+  totalCommits: number
 }
 
 const HotspotContext = createContext<HotspotContextValue>({
   getLevel: () => 0,
   loading: false,
+  tooLarge: false,
+  totalCommits: 0,
 })
 
 interface ScoreMap {
@@ -35,6 +41,8 @@ interface ScoreMap {
   threshold33: number
   threshold10: number
   threshold3: number
+  tooLarge: boolean
+  totalCommits: number
 }
 
 const EMPTY: ScoreMap = {
@@ -42,6 +50,8 @@ const EMPTY: ScoreMap = {
   threshold33: Infinity,
   threshold10: Infinity,
   threshold3: Infinity,
+  tooLarge: false,
+  totalCommits: 0,
 }
 
 interface ProviderProps {
@@ -55,20 +65,27 @@ interface ProviderProps {
 export function HotspotProvider({ repoPath, refreshKey, children }: ProviderProps) {
   const [data, setData] = useState<ScoreMap>(EMPTY)
   const [loading, setLoading] = useState(false)
+  const maxCommits = useMaxPepperCommits()
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    api.getHotspots({ limit: 1000 }).then(result => {
+    api.getPepperScores({ limit: 1000, maxCommits }).then(result => {
       if (cancelled) return
-      if (!result.ok || result.data.length === 0) {
+      if (!result.ok) {
         setData(EMPTY)
+        setLoading(false)
+        return
+      }
+      const { tooLarge, totalCommits, scores: entries } = result.data
+      if (tooLarge || entries.length === 0) {
+        setData({ ...EMPTY, tooLarge, totalCommits })
         setLoading(false)
         return
       }
       const scores = new Map<string, number>()
       const values: number[] = []
-      for (const entry of result.data) {
+      for (const entry of entries) {
         scores.set(entry.path, entry.score)
         values.push(entry.score)
       }
@@ -83,12 +100,14 @@ export function HotspotProvider({ repoPath, refreshKey, children }: ProviderProp
         threshold3: pick(0.03),
         threshold10: pick(0.10),
         threshold33: pick(0.33),
+        tooLarge: false,
+        totalCommits,
       })
       setLoading(false)
     })
     return () => { cancelled = true }
-    // repoPath / refreshKey 변경 시에만 재 fetch
-  }, [repoPath, refreshKey])
+    // repoPath / refreshKey / maxCommits 변경 시에만 재 fetch
+  }, [repoPath, refreshKey, maxCommits])
 
   const value = useMemo<HotspotContextValue>(() => ({
     getLevel: (path: string): SpiceLevel => {
@@ -100,6 +119,8 @@ export function HotspotProvider({ repoPath, refreshKey, children }: ProviderProp
       return 0
     },
     loading,
+    tooLarge: data.tooLarge,
+    totalCommits: data.totalCommits,
   }), [data, loading])
 
   return (
@@ -114,4 +135,10 @@ export function useSpiceLevel(path: string | null | undefined): SpiceLevel {
   const ctx = useContext(HotspotContext)
   if (!path) return 0
   return ctx.getLevel(path)
+}
+
+/** 가드 발동 상태 조회 — 설정창 슬라이더 옆 hint 표시 등에 사용. */
+export function usePepperStatus(): { tooLarge: boolean; totalCommits: number; loading: boolean } {
+  const ctx = useContext(HotspotContext)
+  return { tooLarge: ctx.tooLarge, totalCommits: ctx.totalCommits, loading: ctx.loading }
 }

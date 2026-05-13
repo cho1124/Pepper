@@ -192,12 +192,12 @@ pub fn open_repo(path: String, state: State<AppState>) -> Result<RepoInfo, Strin
     }
 
     {
-        // invalidate forensics cache for the new repo
-        let mut fcache = state
-            .forensics_cache
+        // 새 레포로 바꿀 때 페퍼 캐시 무효화
+        let mut pcache = state
+            .pepper_cache
             .lock()
             .map_err(|e| e.to_string())?;
-        *fcache = None;
+        *pcache = None;
     }
 
     Ok(info)

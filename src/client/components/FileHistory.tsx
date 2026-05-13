@@ -241,14 +241,13 @@ export function FileHistory({ filePath, selectedCommit, onSelectCommit }: Props)
             {commits.length > 0 && (
               <button
                 type="button"
-                className="btn btn-sm"
+                className="btn btn-sm btn-mauve"
                 onClick={handleSummarize}
                 disabled={summaryBusy}
                 title="이 심볼의 진화 과정을 AI 가 자연어로 요약"
                 style={{
                   fontSize: 10, padding: '3px 8px',
                   display: 'inline-flex', alignItems: 'center', gap: 4,
-                  background: 'var(--mauve)', color: 'var(--bg-primary)', borderColor: 'var(--mauve)',
                 }}
               >
                 {summaryBusy ? (

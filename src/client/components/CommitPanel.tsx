@@ -412,7 +412,7 @@ export function CommitPanel({ onCommitDone }: Props) {
               />
               <button
                 type="button"
-                className="btn btn-sm"
+                className="btn btn-sm btn-mauve"
                 onClick={handleGenerateCommitMessage}
                 disabled={genMsgBusy || staged.length === 0}
                 title="Staged diff 분석해서 AI 가 conventional commit 메시지 작성"
@@ -422,9 +422,6 @@ export function CommitPanel({ onCommitDone }: Props) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
-                  background: 'var(--mauve)',
-                  color: 'var(--bg-primary)',
-                  borderColor: 'var(--mauve)',
                   flexShrink: 0,
                 }}
               >

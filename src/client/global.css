@@ -550,6 +550,18 @@ body {
   background: var(--accent-hover);
 }
 
+/* AI 액션 강조용 (테마 생성, 데코 생성 등) */
+.btn-mauve {
+  background: var(--mauve);
+  color: var(--bg-primary);
+  border-color: var(--mauve);
+  font-weight: 500;
+}
+
+.btn-mauve:hover {
+  filter: brightness(1.1);
+}
+
 .btn-sm {
   padding: 4px 8px;
   font-size: 11px;

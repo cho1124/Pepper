@@ -321,7 +321,7 @@ export function InteractiveRebaseModal({ from, fromShort, onClose, onApplied }: 
             취소
           </button>
           <button
-            className="btn btn-sm"
+            className="btn btn-sm btn-mauve"
             onClick={apply}
             disabled={applying || loading || items.length === 0 || keepCount === 0 || hasInvalidMessage || firstNeedsPrior}
             title={
@@ -329,7 +329,6 @@ export function InteractiveRebaseModal({ from, fromShort, onClose, onApplied }: 
               firstNeedsPrior ? '첫 적용 위치는 squash/fixup 불가' :
               undefined
             }
-            style={{ background: 'var(--mauve)', color: 'var(--bg-primary)', borderColor: 'var(--mauve)' }}
           >
             {applying ? (
               <><span className="spinner" style={{ width: 10, height: 10, borderWidth: 1 }} /> 적용 중</>

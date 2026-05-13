@@ -4,7 +4,6 @@ import { api, type RepoInfo } from './api'
 import { FileTree } from './components/FileTree'
 import { CommitLog } from './components/CommitLog'
 import { DiffView } from './components/DiffView'
-import { ForensicsDashboard } from './components/ForensicsDashboard'
 import { StatusBar } from './components/StatusBar'
 import { CommitPanel } from './components/CommitPanel'
 import { FileHistory } from './components/FileHistory'
@@ -19,7 +18,7 @@ import { onDragHandle } from './lib/dragRegion'
 import { useToast } from './components/Toast'
 import { HotspotProvider } from './lib/hotspotContext'
 
-type Tab = 'changes' | 'commits' | 'forensics'
+type Tab = 'changes' | 'commits'
 
 function repoNameFromPath(path: string): string {
   const cleaned = path.replace(/[\\/]+$/, '')
@@ -113,14 +112,13 @@ export default function App() {
     try { localStorage.setItem('pepper.sidebarWidth', String(sidebarWidth)) } catch {}
   }, [sidebarWidth])
 
-  // 키보드 단축키 (Ctrl+1~3 탭 전환, F5 새로고침)
+  // 키보드 단축키 (Ctrl+1~2 탭 전환, F5 새로고침)
   useEffect(() => {
     if (!repo) return
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === '1') { e.preventDefault(); setActiveTab('changes') }
         else if (e.key === '2') { e.preventDefault(); setActiveTab('commits') }
-        else if (e.key === '3') { e.preventDefault(); setActiveTab('forensics') }
       }
       if (e.key === 'F5') { e.preventDefault(); handleRefresh() }
     }
@@ -253,15 +251,6 @@ export default function App() {
             >
               커밋 로그
             </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'forensics'}
-              className={`content-tab ${activeTab === 'forensics' ? 'active' : ''}`}
-              onClick={() => setActiveTab('forensics')}
-              title="Ctrl+3"
-            >
-              Code Forensics
-            </button>
           </div>
 
           <div className="content-area">
@@ -287,9 +276,6 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'forensics' && (
-              <ForensicsDashboard key={`fd-${refreshKey}`} />
-            )}
           </div>
         </div>
       </div>
