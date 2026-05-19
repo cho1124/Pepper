@@ -81,6 +81,13 @@ export interface PepperResult {
   totalCommits: number
 }
 
+// stale 페퍼 — N일 이상 변경 없는 파일
+export interface StaleResult {
+  stalePaths: string[]
+  tooLarge: boolean
+  totalCommits: number
+}
+
 export interface RecentRepo {
   path: string
   name: string
@@ -233,6 +240,13 @@ export const api = {
       limit: opts?.limit ?? 1000,
       days: opts?.days ?? 90,
       maxCommits: opts?.maxCommits ?? 10000,
+    }),
+
+  // ── stale 페퍼: N일 이상 변경 없는 파일 ───────────
+  getStaleFiles: (opts?: { thresholdDays?: number; maxCommits?: number }) =>
+    call<StaleResult>('get_stale_files', {
+      thresholdDays: opts?.thresholdDays ?? 365,
+      maxCommits: opts?.maxCommits ?? 30000,
     }),
 
   // ── Stash ────────────────────────────────────────────

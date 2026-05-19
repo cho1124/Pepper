@@ -27,6 +27,9 @@ import {
   useShowSpiceLevels, setShowSpiceLevels,
   useMaxPepperCommits, setMaxPepperCommits,
   MAX_PEPPER_MIN, MAX_PEPPER_MAX, MAX_PEPPER_DEFAULT, MAX_PEPPER_STEP,
+  useShowStalePepper, setShowStalePepper,
+  useStaleThresholdDays, setStaleThresholdDays,
+  STALE_DAYS_MIN, STALE_DAYS_MAX, STALE_DAYS_DEFAULT, STALE_DAYS_STEP,
 } from '../lib/displaySettings'
 import { usePepperStatus } from '../lib/hotspotContext'
 import {
@@ -83,6 +86,8 @@ export function SettingsModal({ onClose }: Props) {
   const rowPaddingY = useRowPaddingY()
   const showSpice = useShowSpiceLevels()
   const maxPepperCommits = useMaxPepperCommits()
+  const showStale = useShowStalePepper()
+  const staleThresholdDays = useStaleThresholdDays()
   const pepperStatus = usePepperStatus()
   const decor = useDecorConfig()
 
@@ -747,7 +752,7 @@ export function SettingsModal({ onClose }: Props) {
                   </div>
                 </Section>
 
-                <Section title="핫 페퍼 배지" id="behavior-pepper">
+                <Section title="핫 페퍼 (변경 잦은 파일)" id="behavior-pepper">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', fontSize: 12 }}>
@@ -794,6 +799,61 @@ export function SettingsModal({ onClose }: Props) {
                           최근 90일 커밋이 이 값을 넘으면 페퍼 분석을 건너뜁니다 — 큰 레포 멈춤 방지.
                           {pepperStatus.totalCommits > 0 && (
                             <> 현재 레포: <span style={{ fontFamily: 'var(--font-mono)', color: pepperStatus.tooLarge ? 'var(--yellow)' : 'var(--text-secondary)' }}>{pepperStatus.totalCommits.toLocaleString()}</span> 커밋{pepperStatus.tooLarge ? ' — 임계값을 올리면 분석됩니다.' : ' — 분석 가능.'}</>
+                          )}
+                        </Hint>
+                      </div>
+                    )}
+                  </div>
+                </Section>
+
+                <Section title="stale 페퍼 (오래 안 만진 파일)" id="behavior-stale">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', fontSize: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={showStale}
+                          onChange={e => setShowStalePepper(e.target.checked)}
+                        />
+                        <span style={{ filter: 'grayscale(1)', opacity: 0.7 }}>🌶️</span>
+                        <span>stale 페퍼 배지 표시</span>
+                      </label>
+                      <Hint>임계값 이상 변경 없는 파일에 회색 페퍼 1개 표시. 핫 페퍼와 동시 해당이면 핫이 우선.</Hint>
+                    </div>
+
+                    {showStale && (
+                      <div>
+                        <Label>
+                          stale 기준 — <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{staleThresholdDays}</span>일 이상 변경 없음
+                          {staleThresholdDays !== STALE_DAYS_DEFAULT && (
+                            <button
+                              type="button"
+                              onClick={() => setStaleThresholdDays(STALE_DAYS_DEFAULT)}
+                              style={{
+                                marginLeft: 6,
+                                background: 'none', border: 'none',
+                                color: 'var(--text-muted)', cursor: 'pointer',
+                                fontSize: 10, padding: 0,
+                                textDecoration: 'underline',
+                              }}
+                            >
+                              초기화
+                            </button>
+                          )}
+                        </Label>
+                        <input
+                          type="range"
+                          min={STALE_DAYS_MIN}
+                          max={STALE_DAYS_MAX}
+                          step={STALE_DAYS_STEP}
+                          value={staleThresholdDays}
+                          onChange={e => setStaleThresholdDays(parseInt(e.target.value, 10))}
+                          style={{ width: '100%' }}
+                        />
+                        <Hint>
+                          이 기간 안에 한 번도 안 만진 파일이 stale. 30일(아주 보수적) ~ 730일(2년) 범위.
+                          {pepperStatus.staleTotalCommits > 0 && (
+                            <> 현재 레포 범위 내 커밋: <span style={{ fontFamily: 'var(--font-mono)', color: pepperStatus.staleTooLarge ? 'var(--yellow)' : 'var(--text-secondary)' }}>{pepperStatus.staleTotalCommits.toLocaleString()}</span>{pepperStatus.staleTooLarge ? ' — 30000 초과로 분석 건너뜀.' : ''}</>
                           )}
                         </Hint>
                       </div>

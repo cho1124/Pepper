@@ -29,6 +29,10 @@ const DEFAULT_LIMIT: u32 = 1000;
 const DEFAULT_DAYS: u32 = 90;
 const DEFAULT_MAX_COMMITS: u32 = 10_000;
 
+// stale 페퍼 — N일 이상 변경 없는 파일
+const DEFAULT_STALE_DAYS: u32 = 365;
+const DEFAULT_STALE_MAX_COMMITS: u32 = 30_000;
+
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PepperEntry {
@@ -246,5 +250,99 @@ pub fn get_pepper_scores(
         }
 
         Ok(result)
+    })
+}
+
+// ───── Stale 페퍼 ─────────────────────────────────
+//
+// "N일 이상 변경 없는 파일" 검출. 정확한 일수는 노출하지 않고 이진 집합만 반환.
+// 알고리즘:
+//   1. `git ls-files` → 현재 tracked 파일 set
+//   2. `git log --since=Nd --name-only` → threshold 내 변경된 파일 set
+//   3. stale = tracked - recent
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct StaleResult {
+    pub stale_paths: Vec<String>,
+    pub too_large: bool,
+    pub total_commits: u32,
+}
+
+fn list_tracked_files(path: &PathBuf) -> Result<HashSet<String>, String> {
+    let out = run_git(path, &["ls-files"])?;
+    Ok(out
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_string())
+        .collect())
+}
+
+fn list_recent_files(path: &PathBuf, since_days: u32) -> Result<HashSet<String>, String> {
+    let since = Utc::now() - Duration::days(since_days as i64);
+    let since_arg = format!("--since={}", since.format("%Y-%m-%d"));
+
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(path);
+    cmd.args([
+        "log",
+        "--name-only",
+        "--pretty=format:",
+        "--no-merges",
+        "--diff-filter=ACMR",
+        &since_arg,
+    ]);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| format!("git spawn 실패: {}", e))?;
+    let stdout = child.stdout.take().ok_or("stdout 없음")?;
+
+    let mut recent: HashSet<String> = HashSet::new();
+    for line_res in BufReader::new(stdout).lines() {
+        let line = line_res.map_err(|e| format!("git log 읽기 실패: {}", e))?;
+        if !line.is_empty() {
+            recent.insert(line);
+        }
+    }
+
+    let status = child.wait().map_err(|e| format!("git wait 실패: {}", e))?;
+    if !status.success() {
+        return Err("git log 비정상 종료".to_string());
+    }
+    Ok(recent)
+}
+
+#[tauri::command]
+pub fn get_stale_files(
+    threshold_days: Option<u32>,
+    max_commits: Option<u32>,
+    state: State<AppState>,
+) -> Result<StaleResult, String> {
+    let d = threshold_days.unwrap_or(DEFAULT_STALE_DAYS);
+    let max = max_commits.unwrap_or(DEFAULT_STALE_MAX_COMMITS);
+
+    with_repo(&state, |path| {
+        let total = count_commits(path, d).unwrap_or(0);
+        if total > max {
+            return Ok(StaleResult {
+                stale_paths: Vec::new(),
+                too_large: true,
+                total_commits: total,
+            });
+        }
+
+        let tracked = list_tracked_files(path)?;
+        let recent = list_recent_files(path, d)?;
+        let mut stale: Vec<String> = tracked.difference(&recent).cloned().collect();
+        stale.sort();
+
+        Ok(StaleResult {
+            stale_paths: stale,
+            too_large: false,
+            total_commits: total,
+        })
     })
 }

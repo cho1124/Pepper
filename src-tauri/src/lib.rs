@@ -69,6 +69,7 @@ pub fn run() {
             git::get_file_tree,
             git::get_directory_children,
             pepper::get_pepper_scores,
+            pepper::get_stale_files,
             recent::get_recent_repos,
             recent::remove_recent_repo,
             recent::clear_recent_repos,

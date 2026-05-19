@@ -162,6 +162,85 @@ export function useMaxPepperCommits(): number {
   return value
 }
 
+// ── stale 페퍼 표시 여부 ──────────────────────────────────
+// N일 이상 변경 없는 파일에 회색 페퍼 표시.
+const STALE_SHOW_LS_KEY = 'pepper.showStalePepper'
+const STALE_SHOW_EVENT = 'pepper:showStalePepper-changed'
+
+export function getShowStalePepper(): boolean {
+  try {
+    const v = localStorage.getItem(STALE_SHOW_LS_KEY)
+    return v === 'true'
+  } catch {
+    return false
+  }
+}
+
+export function setShowStalePepper(value: boolean): void {
+  try { localStorage.setItem(STALE_SHOW_LS_KEY, String(value)) } catch {}
+  window.dispatchEvent(new CustomEvent(STALE_SHOW_EVENT, { detail: value }))
+}
+
+export function useShowStalePepper(): boolean {
+  const [value, setValue] = useState<boolean>(getShowStalePepper)
+  useEffect(() => {
+    const handler = () => setValue(getShowStalePepper())
+    window.addEventListener(STALE_SHOW_EVENT, handler)
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === STALE_SHOW_LS_KEY) setValue(getShowStalePepper())
+    }
+    window.addEventListener('storage', storageHandler)
+    return () => {
+      window.removeEventListener(STALE_SHOW_EVENT, handler)
+      window.removeEventListener('storage', storageHandler)
+    }
+  }, [])
+  return value
+}
+
+// ── stale 임계값 (일) ──────────────────────────────────────
+const STALE_DAYS_LS_KEY = 'pepper.staleThresholdDays'
+const STALE_DAYS_EVENT = 'pepper:staleThresholdDays-changed'
+export const STALE_DAYS_MIN = 30
+export const STALE_DAYS_MAX = 730
+export const STALE_DAYS_DEFAULT = 365
+export const STALE_DAYS_STEP = 30
+
+export function getStaleThresholdDays(): number {
+  try {
+    const raw = localStorage.getItem(STALE_DAYS_LS_KEY)
+    if (raw === null) return STALE_DAYS_DEFAULT
+    const n = parseInt(raw, 10)
+    if (!Number.isFinite(n)) return STALE_DAYS_DEFAULT
+    return Math.max(STALE_DAYS_MIN, Math.min(STALE_DAYS_MAX, n))
+  } catch {
+    return STALE_DAYS_DEFAULT
+  }
+}
+
+export function setStaleThresholdDays(value: number): void {
+  const clamped = Math.max(STALE_DAYS_MIN, Math.min(STALE_DAYS_MAX, Math.round(value)))
+  try { localStorage.setItem(STALE_DAYS_LS_KEY, String(clamped)) } catch {}
+  window.dispatchEvent(new CustomEvent(STALE_DAYS_EVENT, { detail: clamped }))
+}
+
+export function useStaleThresholdDays(): number {
+  const [value, setValue] = useState<number>(getStaleThresholdDays)
+  useEffect(() => {
+    const handler = () => setValue(getStaleThresholdDays())
+    window.addEventListener(STALE_DAYS_EVENT, handler)
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === STALE_DAYS_LS_KEY) setValue(getStaleThresholdDays())
+    }
+    window.addEventListener('storage', storageHandler)
+    return () => {
+      window.removeEventListener(STALE_DAYS_EVENT, handler)
+      window.removeEventListener('storage', storageHandler)
+    }
+  }, [])
+  return value
+}
+
 /** 앱 부팅 시 1회 호출 — :root에 CSS var 동기화 */
 export function initDisplaySettings(): void {
   const py = getRowPaddingY()
