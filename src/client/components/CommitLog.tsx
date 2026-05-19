@@ -68,9 +68,11 @@ interface CtxMenu {
 function ConflictsPanel({
   conflicts,
   onResolve,
+  resolvingFile,
 }: {
   conflicts: Array<{ path: string; kind: string }>
   onResolve: (file: string, strategy: 'ours' | 'theirs') => void
+  resolvingFile: string | null
 }) {
   return (
     <div style={{
@@ -93,46 +95,68 @@ function ConflictsPanel({
         충돌 {conflicts.length}개 — Take ours/theirs 로 빠른 해결, 또는 외부 에디터에서 수동 해결 후 Stage
       </div>
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-        {conflicts.map(c => (
-          <li
-            key={c.path}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '4px 0',
-              fontSize: 11,
-            }}
-          >
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-primary)',
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              {c.path}
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{c.kind}</span>
-            <button
-              className="btn btn-sm"
-              onClick={() => onResolve(c.path, 'ours')}
-              title="현재 브랜치 버전으로 해결"
-              style={{ fontSize: 10, padding: '2px 6px' }}
+        {conflicts.map(c => {
+          const busy = resolvingFile === c.path
+          const otherBusy = resolvingFile !== null && resolvingFile !== c.path
+          return (
+            <li
+              key={c.path}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 0',
+                fontSize: 11,
+                opacity: otherBusy ? 0.5 : 1,
+              }}
             >
-              Take ours
-            </button>
-            <button
-              className="btn btn-sm"
-              onClick={() => onResolve(c.path, 'theirs')}
-              title="들어오는 버전으로 해결"
-              style={{ fontSize: 10, padding: '2px 6px' }}
-            >
-              Take theirs
-            </button>
-          </li>
-        ))}
+              <span
+                title={c.path}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-primary)',
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {c.path}
+              </span>
+              <span
+                title={c.kind}
+                style={{ color: 'var(--text-muted)', fontSize: 10 }}
+              >
+                {c.kind}
+              </span>
+              {busy && (
+                <span
+                  className="spinner"
+                  style={{ width: 10, height: 10, borderWidth: 1.5 }}
+                  aria-label="해결 중"
+                />
+              )}
+              <button
+                className="btn btn-sm"
+                onClick={() => onResolve(c.path, 'ours')}
+                disabled={resolvingFile !== null}
+                title="현재 브랜치 버전으로 해결"
+                style={{ fontSize: 10, padding: '2px 6px' }}
+              >
+                Take ours
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={() => onResolve(c.path, 'theirs')}
+                disabled={resolvingFile !== null}
+                title="들어오는 버전으로 해결"
+                style={{ fontSize: 10, padding: '2px 6px' }}
+              >
+                Take theirs
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
@@ -253,6 +277,7 @@ export function CommitLog({ selectedCommit, onSelectCommit, file }: Props) {
   const [cherryInProgress, setCherryInProgress] = useState(false)
   const [rebaseInProgress, setRebaseInProgress] = useState(false)
   const [conflicts, setConflicts] = useState<Array<{ path: string; kind: string }>>([])
+  const [resolvingFile, setResolvingFile] = useState<string | null>(null)
   const [irebaseTarget, setIrebaseTarget] = useState<{ from: string; fromShort: string } | null>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
@@ -314,9 +339,16 @@ export function CommitLog({ selectedCommit, onSelectCommit, file }: Props) {
   }, [refreshCherryStatus, refreshRebaseStatus, refreshConflicts])
 
   const handleResolveConflict = async (file: string, strategy: 'ours' | 'theirs') => {
+    setResolvingFile(file)
+    const wasLast = conflicts.length === 1
     const r = await api.resolveConflict(file, strategy)
+    setResolvingFile(null)
     if (r.ok) {
-      toast.success(`${file}: ${strategy === 'ours' ? '내 버전' : '상대 버전'} 으로 해결`)
+      if (wasLast) {
+        toast.success('모든 충돌 해결됨 — 상단 배너에서 Continue 로 진행하세요')
+      } else {
+        toast.success(`${file}: ${strategy === 'ours' ? '내 버전' : '상대 버전'} 으로 해결`)
+      }
     } else {
       toast.error(`해결 실패: ${r.error}`)
     }
@@ -606,6 +638,7 @@ export function CommitLog({ selectedCommit, onSelectCommit, file }: Props) {
         <ConflictsPanel
           conflicts={conflicts}
           onResolve={handleResolveConflict}
+          resolvingFile={resolvingFile}
         />
       )}
       <ul
