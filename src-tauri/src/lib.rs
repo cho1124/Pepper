@@ -40,6 +40,7 @@ pub fn run() {
             git::get_diff,
             git::stage,
             git::unstage,
+            git::discard_files,
             git::apply_patch_cached,
             git::commit,
             git::get_branches,

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, RotateCcw } from 'lucide-react'
 import { api, type StatusInfo } from '../api'
 import { DiffView } from './DiffView'
 import { useToast } from './Toast'
+import { useConfirmWith, type ConfirmExtra } from './ConfirmModal'
 import { StashAccordion } from './StashAccordion'
 import { SpiceLevel } from './SpiceLevel'
 import { getProvider, getSelectedProviderId } from '../lib/ai'
@@ -25,8 +26,16 @@ interface Selection {
 
 const EMPTY_SELECTION: Selection = { staged: null, paths: new Set<string>(), anchor: null }
 
+interface DiscardCtxMenu {
+  files: string[]
+  x: number
+  y: number
+}
+
 export function CommitPanel({ onCommitDone }: Props) {
   const toast = useToast()
+  const confirmWith = useConfirmWith()
+  const [discardCtx, setDiscardCtx] = useState<DiscardCtxMenu | null>(null)
   const [status, setStatus] = useState<StatusInfo | null>(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -178,6 +187,111 @@ export function CommitPanel({ onCommitDone }: Props) {
     })
   }
 
+  /**
+   * 변경사항 되돌리기 (discard).
+   *
+   * tracked (modified / staged): HEAD 버전으로 working tree + index 복원.
+   * untracked: ConfirmModal 체크박스로 명시적 동의 받았을 때만 영구 삭제. 기본 OFF.
+   *
+   * @param files 되돌릴 파일 경로들 (중복 OK)
+   * @param scope 메시지/타이틀 분기용 — 'selected' (선택 N개) / 'single' (1개) / 'all' (전체)
+   */
+  const handleDiscard = useCallback(async (files: string[], scope: 'single' | 'selected' | 'all') => {
+    if (files.length === 0 || !status) return
+    const uniq = Array.from(new Set(files))
+
+    // 어떤 파일이 untracked 인지 분류 (메시지 + 토글 노출 결정용)
+    const untrackedSet = new Set(status.not_added)
+    const untrackedFiles = uniq.filter(f => untrackedSet.has(f))
+    const trackedFiles = uniq.filter(f => !untrackedSet.has(f))
+
+    const extras: ConfirmExtra[] = untrackedFiles.length > 0
+      ? [{
+          key: 'includeUntracked',
+          label: `untracked 파일 ${untrackedFiles.length}개도 영구 삭제`,
+          hint: '체크 해제 시 untracked 파일은 그대로 유지됩니다 (안전 default)',
+          initial: false,
+        }]
+      : []
+
+    const title =
+      scope === 'all' ? '모든 변경사항 되돌리기' :
+      scope === 'single' ? '이 파일의 변경사항 되돌리기' :
+      `선택한 ${uniq.length}개 파일 되돌리기`
+
+    const lines: string[] = []
+    lines.push('되돌릴 수 없습니다.')
+    if (trackedFiles.length > 0) {
+      lines.push(`• 변경된 파일 ${trackedFiles.length}개 — HEAD 버전으로 복원`)
+    }
+    if (untrackedFiles.length > 0) {
+      lines.push(`• untracked 파일 ${untrackedFiles.length}개 — 아래 옵션`)
+    }
+
+    const result = await confirmWith({
+      title,
+      message: lines.join('\n'),
+      confirmLabel: '되돌리기',
+      variant: 'danger',
+      extras,
+    })
+    if (!result.confirmed) return
+
+    const includeUntracked = result.extras.includeUntracked === true
+    const r = await api.discardFiles(uniq, includeUntracked)
+    if (!r.ok) {
+      toast.error(`되돌리기 실패: ${r.error}`)
+      return
+    }
+
+    await loadStatus()
+    setSelection(EMPTY_SELECTION)
+
+    const parts: string[] = []
+    if (r.data.tracked > 0) parts.push(`${r.data.tracked}개 복원`)
+    if (r.data.untracked > 0) parts.push(`untracked ${r.data.untracked}개 삭제`)
+    if (r.data.skippedUntracked > 0) parts.push(`untracked ${r.data.skippedUntracked}개 유지`)
+    toast.success(parts.join(' · ') || '되돌리기 완료')
+  }, [status, confirmWith, toast, loadStatus])
+
+  /** 변경된/staged/untracked 모든 파일 한 번에 되돌리기 */
+  const handleDiscardAll = useCallback(async () => {
+    if (!status) return
+    const all = [
+      ...status.modified,
+      ...status.not_added,
+      ...status.deleted,
+      ...status.staged,
+    ]
+    if (all.length === 0) return
+    await handleDiscard(all, 'all')
+  }, [status, handleDiscard])
+
+  /** 파일 행 우클릭 → 컨텍스트 메뉴 (단일 또는 다중 선택 파일들) */
+  const handleFileContextMenu = useCallback((e: React.MouseEvent, file: string) => {
+    e.preventDefault()
+    // 우클릭한 파일이 현재 다중 선택에 포함 안 되어 있으면 단일 파일만 대상으로
+    const targets = selection.paths.has(file) && selection.paths.size > 1
+      ? Array.from(selection.paths)
+      : [file]
+    setDiscardCtx({ files: targets, x: e.clientX, y: e.clientY })
+  }, [selection])
+
+  // 컨텍스트 메뉴 외부 클릭/Esc 닫기
+  useEffect(() => {
+    if (!discardCtx) return
+    const onDown = () => setDiscardCtx(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDiscardCtx(null)
+    }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [discardCtx])
+
   /** diff reload 후 status reload (hunk staging 직후 호출) */
   const reloadAfterPatch = useCallback(async () => {
     if (!selection.anchor || selection.staged === null) {
@@ -305,13 +419,37 @@ export function CommitPanel({ onCommitDone }: Props) {
                 )}
               </h3>
               {unstagedUnique.length > 0 && (
-                unstagedSelectedCount > 1 ? (
-                  <button className="btn btn-sm" onClick={handleStageSelected} title="선택한 파일만 Stage">
-                    선택한 {unstagedSelectedCount}개 Stage
-                  </button>
-                ) : (
-                  <button className="btn btn-sm" onClick={handleStageAll}>모두 Stage</button>
-                )
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {unstagedSelectedCount > 1 ? (
+                    <>
+                      <button className="btn btn-sm" onClick={handleStageSelected} title="선택한 파일만 Stage">
+                        선택한 {unstagedSelectedCount}개 Stage
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => handleDiscard(Array.from(selection.paths), 'selected')}
+                        title="선택한 파일 변경사항 되돌리기"
+                        style={{ color: 'var(--red)' }}
+                      >
+                        <RotateCcw size={10} style={{ marginRight: 2 }} />
+                        되돌리기
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-sm" onClick={handleStageAll}>모두 Stage</button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={handleDiscardAll}
+                        title="모든 변경사항 되돌리기 (위험)"
+                        style={{ color: 'var(--red)' }}
+                      >
+                        <RotateCcw size={10} style={{ marginRight: 2 }} />
+                        모두 되돌리기
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
             {unstagedUnique.length === 0 ? (
@@ -327,7 +465,8 @@ export function CommitPanel({ onCommitDone }: Props) {
                       className={`commit-item ${isSelected ? 'selected' : ''}`}
                       onMouseDown={(e) => { if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault() }}
                       onClick={(e) => handleFileClick(file, false, e, unstagedUnique)}
-                      title="클릭 = 단일 / Ctrl+클릭 = 다중 / Shift+클릭 = 범위"
+                      onContextMenu={(e) => handleFileContextMenu(e, file)}
+                      title="클릭 = 단일 / Ctrl+클릭 = 다중 / Shift+클릭 = 범위 / 우클릭 = 되돌리기"
                       style={isAnchor ? { borderLeft: '3px solid var(--accent)' } : undefined}
                     >
                       <span style={{ color: 'var(--yellow)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>M</span>
@@ -357,13 +496,26 @@ export function CommitPanel({ onCommitDone }: Props) {
                 )}
               </h3>
               {staged.length > 0 && (
-                stagedSelectedCount > 1 ? (
-                  <button className="btn btn-sm" onClick={handleUnstageSelected} title="선택한 파일만 Unstage">
-                    선택한 {stagedSelectedCount}개 Unstage
-                  </button>
-                ) : (
-                  <button className="btn btn-sm" onClick={handleUnstageAll}>모두 Unstage</button>
-                )
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {stagedSelectedCount > 1 ? (
+                    <>
+                      <button className="btn btn-sm" onClick={handleUnstageSelected} title="선택한 파일만 Unstage">
+                        선택한 {stagedSelectedCount}개 Unstage
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => handleDiscard(Array.from(selection.paths), 'selected')}
+                        title="선택한 파일 변경사항 되돌리기"
+                        style={{ color: 'var(--red)' }}
+                      >
+                        <RotateCcw size={10} style={{ marginRight: 2 }} />
+                        되돌리기
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn btn-sm" onClick={handleUnstageAll}>모두 Unstage</button>
+                  )}
+                </div>
               )}
             </div>
             {staged.length > 0 && (
@@ -377,7 +529,8 @@ export function CommitPanel({ onCommitDone }: Props) {
                       className={`commit-item ${isSelected ? 'selected' : ''}`}
                       onMouseDown={(e) => { if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault() }}
                       onClick={(e) => handleFileClick(file, true, e, staged)}
-                      title="클릭 = 단일 / Ctrl+클릭 = 다중 / Shift+클릭 = 범위"
+                      onContextMenu={(e) => handleFileContextMenu(e, file)}
+                      title="클릭 = 단일 / Ctrl+클릭 = 다중 / Shift+클릭 = 범위 / 우클릭 = 되돌리기"
                       style={isAnchor ? { borderLeft: '3px solid var(--accent)' } : undefined}
                     >
                       <span style={{ color: 'var(--green)', fontSize: '11px' }}>✓</span>
@@ -519,6 +672,59 @@ export function CommitPanel({ onCommitDone }: Props) {
           )}
         </div>
       </div>
+
+      {/* 파일 행 우클릭 컨텍스트 메뉴 (Discard 진입점 B) */}
+      {discardCtx && (
+        <div
+          role="menu"
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            left: discardCtx.x,
+            top: discardCtx.y,
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.45)',
+            padding: 4,
+            minWidth: 200,
+            zIndex: 10000,
+          }}
+        >
+          <button
+            role="menuitem"
+            onClick={() => {
+              const targets = discardCtx.files
+              const scope: 'single' | 'selected' = targets.length > 1 ? 'selected' : 'single'
+              setDiscardCtx(null)
+              handleDiscard(targets, scope)
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '6px 10px',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 4,
+              color: 'var(--red)',
+              fontSize: 12,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <RotateCcw size={12} />
+            <span>
+              변경사항 되돌리기
+              {discardCtx.files.length > 1 ? ` (${discardCtx.files.length}개)` : ''}
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

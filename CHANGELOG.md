@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.1.0 — 2026-05-19
+
+> 변경사항 되돌리기 (discard) 기능 추가. 다른 Git GUI에 다 있는 기본 기능이라 빠지면 신뢰 손상되는 영역 보강.
+
+### ✨ Discard 기능
+
+- **우클릭 메뉴**: 변경사항 패널의 파일 행 우클릭 → "변경사항 되돌리기"
+- **다중 선택 일괄**: Ctrl/Shift로 N개 선택 후 헤더의 "되돌리기" 버튼 — Unstaged / Staged 두 그룹에서 모두 가능
+- **전체 되돌리기**: Unstaged 헤더 "모두 되돌리기" 버튼 — modified / staged / not_added / deleted 전부
+- **안전 가드**: ConfirmModal `variant: danger` + tracked / untracked 분류 메시지
+- **untracked 정책**: 안전 default — 별도 체크박스 "untracked 파일도 영구 삭제" (기본 OFF). 체크 안 하면 untracked 파일은 그대로 유지
+
+### 구현
+
+- `src-tauri/src/git.rs` — `discard_files(files, include_untracked)` 명령 추가
+  - `git status --porcelain -z` 로 tracked / untracked 분류
+  - tracked: `git reset HEAD --` + `git checkout HEAD --` 으로 HEAD 복원
+  - untracked: opt-in 시 `git clean -f --`
+  - `DiscardResult { tracked, untracked, skippedUntracked }` 반환 — 토스트에 결과 명시
+- `src-tauri/src/lib.rs` — 명령 등록
+- `src/client/api.ts` — `discardFiles` + `DiscardResult` 타입
+- `src/client/components/ConfirmModal.tsx` — `extras: ConfirmExtra[]` 필드 + `confirmWith()` API 추가 (기존 `confirm()` 호환 유지)
+- `src/client/components/CommitPanel.tsx` — 헤더 일괄 버튼 + 행 우클릭 컨텍스트 메뉴 + handleDiscard / handleDiscardAll
+
+---
+
 ## v1.0.1 — 2026-05-19 (핫픽스)
 
 > AI 서버 시작 실패 시 사용자가 원인을 알 수 없던 디버깅 사각지대를 해소.

@@ -67,6 +67,15 @@ export interface CommitResult {
   summary: unknown
 }
 
+export interface DiscardResult {
+  /** 복원된 tracked 파일 수 */
+  tracked: number
+  /** 영구 삭제된 untracked 파일 수 */
+  untracked: number
+  /** include_untracked=false 라서 건너뛴 untracked 파일 수 */
+  skippedUntracked: number
+}
+
 // 핫 페퍼 배지용 슬림 응답 (forensics 통째 대체)
 export interface PepperEntry {
   path: string
@@ -154,6 +163,10 @@ export const api = {
   stage: (files: string[]) => call<void>('stage', { files }),
 
   unstage: (files: string[]) => call<void>('unstage', { files }),
+
+  /** 변경사항 되돌리기 — tracked 는 HEAD 복원, untracked 는 옵션에 따라 영구 삭제. */
+  discardFiles: (files: string[], includeUntracked: boolean) =>
+    call<DiscardResult>('discard_files', { files, includeUntracked }),
 
   /** 부분 staging — hunk 단위 patch 를 stdin 으로 git apply --cached 에 전달. */
   applyPatchCached: (patch: string, reverse?: boolean) =>

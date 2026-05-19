@@ -326,6 +326,88 @@ pub fn unstage(files: Vec<String>, state: State<AppState>) -> Result<(), String>
     })
 }
 
+/// 변경사항 되돌리기 (discard).
+///
+/// - tracked (modified/staged): `git reset HEAD --` 로 unstage 후 `git checkout HEAD --` 로 working tree HEAD 복원
+/// - untracked (`??`): `include_untracked=true` 일 때만 `git clean -f --` 로 영구 삭제
+///
+/// Returns: (tracked 처리 개수, untracked 처리 개수, skipped 개수)
+#[tauri::command]
+pub fn discard_files(
+    files: Vec<String>,
+    include_untracked: bool,
+    state: State<AppState>,
+) -> Result<DiscardResult, String> {
+    with_repo(&state, |path| {
+        // 1) status --porcelain -z 로 분류 (rename 등 복잡 케이스는 1차에서 단순화)
+        let porcelain = run_git(path, &["status", "--porcelain", "-z"])?;
+        let path_set: std::collections::HashSet<String> = files.into_iter().collect();
+        let mut tracked: Vec<String> = Vec::new();
+        let mut untracked: Vec<String> = Vec::new();
+        for entry in porcelain.split('\0') {
+            if entry.len() < 3 {
+                continue;
+            }
+            let code = &entry[..2];
+            let file = entry[3..].to_string();
+            if !path_set.contains(&file) {
+                continue;
+            }
+            if code == "??" {
+                untracked.push(file);
+            } else {
+                tracked.push(file);
+            }
+        }
+
+        // 2) tracked → unstage (reset) + working tree 복원 (checkout HEAD)
+        if !tracked.is_empty() {
+            let mut reset_args: Vec<&str> = vec!["reset", "HEAD", "--"];
+            for f in &tracked {
+                reset_args.push(f.as_str());
+            }
+            // staged 변경 없는 파일도 안전 — exit 0
+            run_git(path, &reset_args)?;
+
+            let mut checkout_args: Vec<&str> = vec!["checkout", "HEAD", "--"];
+            for f in &tracked {
+                checkout_args.push(f.as_str());
+            }
+            run_git(path, &checkout_args)?;
+        }
+
+        // 3) untracked → opt-in 시 영구 삭제
+        let untracked_processed = if include_untracked && !untracked.is_empty() {
+            let mut clean_args: Vec<&str> = vec!["clean", "-f", "--"];
+            for f in &untracked {
+                clean_args.push(f.as_str());
+            }
+            run_git(path, &clean_args)?;
+            untracked.len()
+        } else {
+            0
+        };
+        let untracked_skipped = untracked.len() - untracked_processed;
+
+        Ok(DiscardResult {
+            tracked: tracked.len(),
+            untracked: untracked_processed,
+            skipped_untracked: untracked_skipped,
+        })
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscardResult {
+    /// 복원된 tracked 파일 수
+    pub tracked: usize,
+    /// 영구 삭제된 untracked 파일 수
+    pub untracked: usize,
+    /// include_untracked=false 라서 건너뛴 untracked 파일 수
+    pub skipped_untracked: usize,
+}
+
 /// 부분 staging — hunk 단위 패치를 stdin으로 git apply --cached 에 전달.
 /// `reverse=true` 면 staged → unstaged 로 되돌림 (--reverse).
 #[tauri::command]
