@@ -30,8 +30,10 @@ export function BranchSelector({ currentBranch, onBranchChanged, refreshKey }: P
     const result = await api.getBranches()
     if (result.ok) {
       setBranches(result.data.all)
+    } else {
+      toast.error(`브랜치 목록 로드 실패: ${result.error}`)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     loadBranches()

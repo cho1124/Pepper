@@ -45,9 +45,13 @@ export function FileHistory({ filePath, selectedCommit, onSelectCommit }: Props)
     setSelectedSymbolIdx(-1)
     setSymbols([])
     api.getSymbols(filePath).then(result => {
-      if (result.ok) setSymbols(result.data)
+      if (result.ok) {
+        setSymbols(result.data)
+      } else {
+        toast.error(`심볼 로드 실패: ${result.error}`)
+      }
     })
-  }, [filePath])
+  }, [filePath, toast])
 
   // 심볼 선택 시에만 히스토리 로드 (파일 전체 로그는 우측 커밋 로그 탭에서)
   useEffect(() => {

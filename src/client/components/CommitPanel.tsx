@@ -41,9 +41,14 @@ export function CommitPanel({ onCommitDone }: Props) {
   const loadStatus = useCallback(async () => {
     setLoading(true)
     const result = await api.getStatus()
-    if (result.ok) setStatus(result.data)
+    if (result.ok) {
+      setStatus(result.data)
+    } else {
+      setStatus(null)
+      toast.error(`상태 로드 실패: ${result.error}`)
+    }
     setLoading(false)
-  }, [])
+  }, [toast])
 
   useEffect(() => { loadStatus() }, [loadStatus])
 

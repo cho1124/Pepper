@@ -67,8 +67,13 @@ export default function App() {
   const handleSelectCommit = useCallback(async (hash: string) => {
     setSelectedCommit(hash)
     const result = await api.getDiff(hash)
-    if (result.ok) setDiff(result.data)
-  }, [])
+    if (result.ok) {
+      setDiff(result.data)
+    } else {
+      setDiff('')
+      toast.error(`diff 로드 실패: ${result.error}`)
+    }
+  }, [toast])
 
   const handleSelectFile = useCallback((path: string) => {
     setSelectedFile(path)

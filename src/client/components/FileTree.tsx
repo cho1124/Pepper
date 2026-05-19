@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Folder, FolderOpen, FileText } from 'lucide-react'
 import { api, type FileTreeNode } from '../api'
 import { SpiceLevel } from './SpiceLevel'
+import { useToast } from './Toast'
 
 interface Props {
   onSelectFile: (path: string) => void
@@ -11,6 +12,7 @@ interface Props {
 type ChildrenMap = Map<string, FileTreeNode[]>
 
 export function FileTree({ onSelectFile, selectedFile }: Props) {
+  const toast = useToast()
   const [roots, setRoots] = useState<FileTreeNode[]>([])
   const [childrenMap, setChildrenMap] = useState<ChildrenMap>(new Map())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -20,10 +22,14 @@ export function FileTree({ onSelectFile, selectedFile }: Props) {
   useEffect(() => {
     setRootLoading(true)
     api.getFileTree().then(result => {
-      if (result.ok) setRoots(result.data)
+      if (result.ok) {
+        setRoots(result.data)
+      } else {
+        toast.error(`파일 트리 로드 실패: ${result.error}`)
+      }
       setRootLoading(false)
     })
-  }, [])
+  }, [toast])
 
   const loadChildren = useCallback(async (dirPath: string) => {
     if (childrenMap.has(dirPath) || loadingPath.has(dirPath)) return
@@ -40,8 +46,10 @@ export function FileTree({ onSelectFile, selectedFile }: Props) {
         next.set(dirPath, result.data)
         return next
       })
+    } else {
+      toast.error(`디렉터리 펼치기 실패: ${result.error}`)
     }
-  }, [childrenMap, loadingPath])
+  }, [childrenMap, loadingPath, toast])
 
   const toggleDir = useCallback((node: FileTreeNode) => {
     const path = node.path

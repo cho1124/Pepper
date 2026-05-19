@@ -267,10 +267,13 @@ export function CommitLog({ selectedCommit, onSelectCommit, file }: Props) {
       if (result.ok) {
         setCommits(result.data)
         if (result.data.length < PAGE_SIZE) setReachedEnd(true)
+      } else {
+        setCommits([])
+        toast.error(`커밋 로그 로드 실패: ${result.error}`)
       }
       setLoading(false)
     })
-  }, [file, includeAll])
+  }, [file, includeAll, toast])
 
   // includeAll 변경 시 localStorage 저장 (파일 모드 제외)
   useEffect(() => {
@@ -284,8 +287,10 @@ export function CommitLog({ selectedCommit, onSelectCommit, file }: Props) {
     if (result.ok) {
       setCommits(result.data)
       setReachedEnd(result.data.length < target)
+    } else {
+      toast.error(`커밋 로그 갱신 실패: ${result.error}`)
     }
-  }, [commits.length, file, includeAll])
+  }, [commits.length, file, includeAll, toast])
 
   const refreshCherryStatus = useCallback(async () => {
     const r = await api.cherryPickInProgress()
@@ -499,8 +504,10 @@ export function CommitLog({ selectedCommit, onSelectCommit, file }: Props) {
         setCommits(next)
         if (next.length - commits.length < PAGE_SIZE) setReachedEnd(true)
       }
+    } else {
+      toast.error(`커밋 로그 추가 로드 실패: ${result.error}`)
     }
-  }, [commits.length, file, loadingMore, reachedEnd, includeAll])
+  }, [commits.length, file, loadingMore, reachedEnd, includeAll, toast])
 
   // 키보드 네비 (↑/↓) — 리스트에 focus 된 상태에서
   useEffect(() => {
