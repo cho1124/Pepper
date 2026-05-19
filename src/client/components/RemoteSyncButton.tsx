@@ -76,7 +76,9 @@ export function RemoteSyncButton({ refreshKey, onSynced }: Props) {
       await refresh()
       onSynced()
     } else {
-      toast.error(`${labelMap[action]} 실패: ${r.error}`)
+      const summary = classifyRemoteError(r.error)
+      const detail = firstNonEmptyLine(r.error)
+      toast.error(`${labelMap[action]} 실패 — ${summary}\n${detail}`)
     }
   }
 
@@ -227,6 +229,69 @@ const labelMap: Record<Action, string> = {
   fetch: 'Fetch',
   pull: 'Pull',
   push: 'Push',
+}
+
+/**
+ * git stderr 패턴을 한국어 요약으로 매핑.
+ * 모르는 패턴은 첫 줄 그대로 반환 (정보 손실 없음).
+ */
+function classifyRemoteError(raw: string): string {
+  const s = raw.toLowerCase()
+  if (
+    s.includes('could not resolve host') ||
+    s.includes('unable to access') ||
+    s.includes('failed to connect') ||
+    s.includes('could not read from remote') ||
+    s.includes('connection timed out') ||
+    s.includes('network is unreachable')
+  ) {
+    return '네트워크 연결 실패 (호스트/방화벽 확인 필요)'
+  }
+  if (
+    s.includes('authentication failed') ||
+    s.includes('could not read username') ||
+    s.includes('permission denied') ||
+    s.includes('invalid credentials')
+  ) {
+    return '원격 인증 실패 (자격 증명/PAT 확인 필요)'
+  }
+  if (s.includes('no tracking information') || s.includes('no upstream branch')) {
+    return '원격 추적 브랜치 미설정 (push -u 필요)'
+  }
+  if (
+    s.includes('updates were rejected') ||
+    s.includes('non-fast-forward') ||
+    s.includes('fetch first')
+  ) {
+    return 'Push 거부 — 원격에 새 커밋 있음 (먼저 pull 필요)'
+  }
+  if (
+    s.includes('your local changes') ||
+    s.includes('would be overwritten') ||
+    s.includes('uncommitted changes')
+  ) {
+    return '로컬 변경이 덮어써질 위험 (먼저 commit/stash 필요)'
+  }
+  if (s.includes('merge conflict') || s.includes('automatic merge failed')) {
+    return '머지 충돌 — 수동 해결 필요'
+  }
+  if (
+    s.includes('you are in the middle of') ||
+    s.includes('rebase in progress') ||
+    s.includes('merge in progress') ||
+    s.includes('cherry-pick is now empty')
+  ) {
+    return '진행 중인 작업 있음 (먼저 완료/중단 필요)'
+  }
+  return firstNonEmptyLine(raw)
+}
+
+function firstNonEmptyLine(raw: string): string {
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim()
+    if (t) return t.length > 140 ? t.slice(0, 140) + '…' : t
+  }
+  return raw
 }
 
 interface ViewState {
