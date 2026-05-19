@@ -1,14 +1,22 @@
 //! llama-server (llama.cpp) 자식 프로세스 라이프사이클 + 바이너리 자동 설치.
 
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::Arc;
 
+use chrono::Utc;
 use serde::Deserialize;
 use tauri::ipc::Channel;
-use tokio::process::Child;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, ChildStderr};
+use tokio::sync::Mutex as TokioMutex;
 
 use super::download::{download_to_file, DownloadProgress};
 use super::paths;
+
+/// stderr tail buffer 가 유지할 최대 줄 수 — 시작 실패 시 에러 메시지에 포함됨.
+const STDERR_TAIL_MAX_LINES: usize = 40;
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -235,6 +243,7 @@ pub async fn spawn_server(
     }
 
     let port = pick_port()?;
+    let log_path = paths::logs_dir()?.join("llama-server.log");
 
     let mut std_cmd = std::process::Command::new(&server);
     std_cmd
@@ -247,7 +256,7 @@ pub async fn spawn_server(
         .arg("-c")
         .arg(ctx.to_string())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .stdin(Stdio::null());
 
     #[cfg(target_os = "windows")]
@@ -258,13 +267,29 @@ pub async fn spawn_server(
 
     let mut cmd = tokio::process::Command::from(std_cmd);
     cmd.kill_on_drop(true);
-    let child = cmd
+    let mut child = cmd
         .spawn()
         .map_err(|e| format!("llama-server 시작 실패: {}", e))?;
+
+    // stderr 캡처 — 파일 로그 + 메모리 tail buffer (시작 실패 시 에러 메시지에 포함)
+    let tail_buf: Arc<TokioMutex<VecDeque<String>>> = Arc::new(TokioMutex::new(
+        VecDeque::with_capacity(STDERR_TAIL_MAX_LINES),
+    ));
+    if let Some(stderr) = child.stderr.take() {
+        let tail_clone = tail_buf.clone();
+        let log_path_clone = log_path.clone();
+        let model_id_clone = model_id.clone();
+        tokio::spawn(async move {
+            capture_stderr(stderr, log_path_clone, tail_clone, &model_id_clone, port).await;
+        });
+    }
 
     // /health 폴링으로 ready 대기 (최대 30초)
     let ready = wait_for_ready(port, 30).await;
     if !ready {
+        // tail buffer 가 채워질 시간을 잠시 줌
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let tail_lines: Vec<String> = tail_buf.lock().await.iter().cloned().collect();
         let _ = AiServerHandle {
             child,
             port,
@@ -272,7 +297,17 @@ pub async fn spawn_server(
         }
         .stop()
         .await;
-        return Err("llama-server 가 30초 안에 응답하지 않았습니다".to_string());
+
+        let mut msg = String::from("llama-server 가 30초 안에 응답하지 않았습니다");
+        if !tail_lines.is_empty() {
+            msg.push_str("\n\n[llama-server stderr 마지막 ");
+            msg.push_str(&tail_lines.len().to_string());
+            msg.push_str("줄]\n");
+            msg.push_str(&tail_lines.join("\n"));
+        }
+        msg.push_str("\n\n전체 로그: ");
+        msg.push_str(&log_path.display().to_string());
+        return Err(msg);
     }
 
     Ok(AiServerHandle {
@@ -280,6 +315,48 @@ pub async fn spawn_server(
         port,
         model_id,
     })
+}
+
+/// 자식 프로세스 stderr 를 라인 단위로 읽어
+/// (1) `<DataLocal>/pepper/logs/llama-server.log` 에 append
+/// (2) 메모리 tail 버퍼에 마지막 N줄 유지 — spawn_server 가 시작 실패 시 에러 메시지로 노출.
+async fn capture_stderr(
+    stderr: ChildStderr,
+    log_path: PathBuf,
+    tail_buf: Arc<TokioMutex<VecDeque<String>>>,
+    model_id: &str,
+    port: u16,
+) {
+    // 로그 파일 open (append). 실패하면 메모리 버퍼만 채움.
+    let mut log_file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .await
+        .ok();
+
+    if let Some(ref mut f) = log_file {
+        let header = format!(
+            "\n===== spawn @ {} | model={} | port={} =====\n",
+            Utc::now().format("%Y-%m-%d %H:%M:%S UTC"),
+            model_id,
+            port
+        );
+        let _ = f.write_all(header.as_bytes()).await;
+    }
+
+    let mut reader = BufReader::new(stderr).lines();
+    while let Ok(Some(line)) = reader.next_line().await {
+        if let Some(ref mut f) = log_file {
+            let _ = f.write_all(line.as_bytes()).await;
+            let _ = f.write_all(b"\n").await;
+        }
+        let mut buf = tail_buf.lock().await;
+        if buf.len() >= STDERR_TAIL_MAX_LINES {
+            buf.pop_front();
+        }
+        buf.push_back(line);
+    }
 }
 
 async fn wait_for_ready(port: u16, max_secs: u64) -> bool {

@@ -1,6 +1,6 @@
 {
   "name": "pepper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pepper — a friendly Git GUI with symbol-level history, on-device AI, and pepper badges for change-frequency visualization",
   "type": "module",
   "scripts": {

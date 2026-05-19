@@ -28,6 +28,12 @@ pub fn bin_dir() -> Result<PathBuf, String> {
     Ok(p)
 }
 
+pub fn logs_dir() -> Result<PathBuf, String> {
+    let p = root()?.join("logs");
+    std::fs::create_dir_all(&p).map_err(|e| format!("logs dir 생성 실패: {}", e))?;
+    Ok(p)
+}
+
 pub fn model_path(filename: &str) -> Result<PathBuf, String> {
     Ok(models_dir()?.join(filename))
 }

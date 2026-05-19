@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.0.1 — 2026-05-19 (핫픽스)
+
+> AI 서버 시작 실패 시 사용자가 원인을 알 수 없던 디버깅 사각지대를 해소.
+
+### 🔧 llama-server stderr 캡처 + 파일 로깅
+
+- `<DataLocal>/pepper/logs/llama-server.log` 에 spawn마다 헤더(타임스탬프 / 모델 ID / 포트) + stderr 전체 append
+- 시작 실패 시(`/health` 30초 미응답) 에러 토스트에 stderr 마지막 40줄 + 로그 파일 경로 포함
+- 사용자가 "AI 안 됨" 신고할 때 로그 파일 첨부로 진짜 원인(AVX2 미지원 / DLL 누락 / 모델 corrupt 등) 식별 가능
+
+### 변경 파일
+
+- `src-tauri/src/ai/server.rs` — stderr piped + `capture_stderr` 태스크 + tail buffer
+- `src-tauri/src/ai/paths.rs` — `logs_dir()` 추가
+
+### 알려진 제약
+
+- 이번 핫픽스는 **진단 가시성만** 개선. 실패 원인 자체 (AVX2 fallback 등)는 다음 패치 후보.
+
+---
+
 ## v1.0.0 — 2026-05-19
 
 > 새 기능 추가 없이 **안정성과 외부 표면 위생**에 집중한 최종 정리 릴리즈.
