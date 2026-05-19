@@ -1,6 +1,6 @@
 # Pepper 스크린샷·데모 GIF 가이드
 
-> 포폴 종결판(v1.0.0) 출시 시 README와 GitHub Release에 첨부할 스크린샷/GIF 촬영 체크리스트.
+> 최종 업데이트(v1.0.0) 출시 시 README와 GitHub Release에 첨부할 스크린샷/GIF 촬영 체크리스트.
 
 ## 저장 위치 & 명명
 
@@ -58,6 +58,7 @@
 
 ```markdown
 ### 3️⃣ 페퍼 배지
+
 ... (텍스트)
 ![Pepper badges in action](docs/screenshots/g01-pepper-badges.gif)
 ```
@@ -69,5 +70,5 @@ GitHub Release 본문 상단에도 한두 장 첨부 — `02-overview.png`와 `g
 ## 비고
 
 - 데모 레포는 공개 가능한 것으로 (`Pepper` 자신 또는 `archive/express-version` 활용 가능)
-- 한국어 UI 그대로 노출 OK (포폴 타겟이 국내 위주라면 오히려 강점)
+- 한국어 UI 그대로 노출 OK (사용자 타겟이 국내 위주라면 오히려 강점)
 - 자격 증명/실 경로/실 이메일이 화면에 보이는 경우 흐림 처리

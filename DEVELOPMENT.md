@@ -4,11 +4,11 @@
 
 ---
 
-## 🏁 v1.0.0 포폴 마무리 핸드오프 (2026-05-19)
+## 🏁 v1.0.0 최종 핸드오프 (2026-05-19)
 
 ### 시나리오 변경
 
-**소규모 신뢰권 배포 (n=5~20)** → **포폴 가치만 살리고 마무리**. 적대적 검증 4R에서 "본인용 vs 시장 출시" 이분법이 잘못된 frame이었음을 식별 (실제는 그 중간). 5/19에 다시 한 번 frame 정리 — 시장도 신뢰권도 아닌 **작품으로 종결**.
+**소규모 신뢰권 배포 (n=5~20)** → **안정성·외부 표면 위생에 집중한 마무리**. 적대적 검증 4R에서 "본인용 vs 시장 출시" 이분법이 잘못된 frame이었음을 식별 (실제는 그 중간). 5/19에 다시 한 번 frame 정리 — 시장도 신뢰권도 아닌 **기능 동결 + 최종 정리**.
 
 ### 마무리 단계에 처리한 결함 (D-01 / D-06 / D-07 / D-17)
 
@@ -30,7 +30,7 @@
 
 ### 다음 후보는 없음
 
-이전에 잡혀있던 Phase 11-E 봉고캣 미니 모드 / Git 호스팅 연동 / Phase 11-B-2-c 충돌 AI 제안 / Phase 11-C AI refine / Phase 10 Knowledge Graph 등은 **포폴 마무리 frame에서 모두 보류**. Lean Principle 강화 — 새 기능 추가 없음, 다듬기만.
+이전에 잡혀있던 Phase 11-E 봉고캣 미니 모드 / Git 호스팅 연동 / Phase 11-B-2-c 충돌 AI 제안 / Phase 11-C AI refine / Phase 10 Knowledge Graph 등은 **v1.0.0 frame에서 모두 보류**. Lean Principle 강화 — 새 기능 추가 없음, 다듬기만.
 
 ### v1.0.0 릴리즈 작업 (직접)
 
@@ -38,7 +38,7 @@
 cd C:/Users/WINTEK/Desktop/Personal/GitScope
 npm run build   # NSIS + MSI 생성, 5~10분
 gh release create v1.0.0 `
-  --title "Pepper v1.0.0 — 포폴 종결판" `
+  --title "Pepper v1.0.0 — 최종 업데이트" `
   --notes-file CHANGELOG.md `
   "src-tauri/target/release/bundle/nsis/Pepper_1.0.0_x64-setup.exe" `
   "src-tauri/target/release/bundle/msi/Pepper_1.0.0_x64_en-US.msi"
