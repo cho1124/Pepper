@@ -51,7 +51,7 @@ export function StatusBar({ branch, refreshKey, onOpenSettings }: Props) {
       )}
       <div style={{ flex: 1 }} />
       <AiStatusChip onOpenSettings={onOpenSettings} />
-      <span style={{ marginLeft: 8 }}>Pepper v0.5.0</span>
+      <span style={{ marginLeft: 8 }}>Pepper v{__APP_VERSION__}</span>
     </div>
   )
 }
