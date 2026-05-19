@@ -9,7 +9,7 @@
 ![On-device AI](https://img.shields.io/badge/AI-on--device-ff6b35.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-<!-- 스크린샷/데모 GIF 자리 — 자세한 안내는 docs/SCREENSHOTS.md 참고 -->
+![Pepper 메인 화면 — 파일 트리의 🌶️ 페퍼 배지, 통합 헤더, 배경 데코](docs/screenshots/02-overview.png)
 
 ## 다운로드
 
@@ -106,6 +106,8 @@
 - 3가지 drift 모드 (자유 / 위로 / 아래로) + 9개 옵션
 - 36개 아이콘 풀 (git · code · minimal · fun · custom)
 - AI 자연어 생성 ("고양이가 떠다니는") 가능
+
+![설정창 외형 탭 — Catppuccin 4 flavor + Minty Custom Theme + AI 자연어 배경 데코 생성](docs/screenshots/04-settings-theme.png)
 
 ### UX
 
