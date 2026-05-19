@@ -58,7 +58,7 @@ export function WelcomeScreen({ onOpen, opening }: Props) {
   return (
     <div className="welcome-screen">
       <h2>Pepper</h2>
-      <p>심볼 단위 히스토리 · 내장 AI · 코드 포렌식 — 친근한 Git GUI</p>
+      <p>심볼 단위 히스토리 · 내장 AI · 페퍼 배지 — 친근한 Git GUI</p>
 
       <div style={{ display: 'flex', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
         <button
