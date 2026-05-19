@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Pepper",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "identifier": "dev.cho1124.pepper",
   "build": {
     "frontendDist": "../dist/client",

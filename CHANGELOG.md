@@ -1,5 +1,43 @@
 # Changelog
 
+## v1.0.0 — 2026-05-19 (포폴 종결판)
+
+> 시나리오 변경: "소규모 신뢰권 배포 (n=5~20)" → **포폴 가치만 살리고 마무리**.
+> 적대적 검증 4R의 frame insight ("본인용 vs 시장 출시" 이분법이 잘못된 frame)를 거쳐, 시장도 신뢰권도 아닌 **작품으로 종결**합니다.
+
+### 🌶️ Stale 페퍼 — 페퍼 시리즈 완성
+
+- N일(기본 365일) 이상 변경 없는 파일에 회색 🌶️ 배지
+- `git ls-files` − `git log --since=Nd` 차집합으로 검출
+- 30000 커밋 가드 (대형 레포 분석 skip)
+- 설정창에 토글 + 30~730일 슬라이더 (기본 OFF)
+- 핫 🌶️ (자주 변경, 리팩토링 후보)와 mutual exclusive, 동시 해당 시 핫 우선
+
+### 🔧 마무리 단계 결함 처리
+
+적대적 검증 32 결함 중 포폴 가치에 영향 큰 4건 처리:
+
+- **D-01** WelcomeScreen "코드 포렌식" stale 문자열 + package.json description + global.css 118줄 dead CSS → forensics 잔재 일괄 정리
+- **D-07** `result.ok` silent fail 9건 → toast.error 보강 (read/load 경로). mutating 액션은 이미 처리되어 있어 변경 없음
+- **D-17** fetch/push/pull stderr 그대로 노출 → `classifyRemoteError` 분류기: network/auth/no_upstream/rejected/conflict/in_progress 한국어 요약 + raw 첫 줄 fallback
+- **D-06** 충돌 해결 UX → 해결 중 spinner + 버튼 disable + 마지막 해결 시 "Continue 안내" 토스트 + 긴 경로 툴팁
+
+### 📖 외부 표면 위생
+
+- **README.md 전면 재작성** (319→256 lines) — 차별점 3가지 head 절 + Forensics 섹션 제거 + 적대적 검증 회고 추가
+- **DEVELOPMENT.md** v1.0.0 핸드오프 절 신설 (역사 기록은 보존)
+- **docs/SCREENSHOTS.md** 신규 — 스크린샷·데모 GIF 촬영 가이드
+
+### 의도적으로 처리하지 않음 (배포 시나리오 의존)
+
+- D-29 OS 자격 증명 통합, D-15 stash 발견성, D-16 페퍼 도움말, D-09 DiffView virtualize, D-28 다중 인스턴스 lock
+
+### 폐기된 후보
+
+- Phase 11-E 봉고캣 미니 모드, Phase 10 Knowledge Graph, Phase 11-B-2-c 충돌 AI 제안, Phase 11-C AI refine, Git 호스팅 연동 — Lean Principle 강화, 새 기능 추가 없음
+
+---
+
 ## v0.5.0 — 2026-05-12
 
 ### 🌶️ Rebranding
