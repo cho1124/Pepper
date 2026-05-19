@@ -107,7 +107,7 @@
 - 36개 아이콘 풀 (git · code · minimal · fun · custom)
 - AI 자연어 생성 ("고양이가 떠다니는") 가능
 
-![설정창 외형 탭 — Catppuccin 4 flavor + Minty Custom Theme + AI 자연어 배경 데코 생성](docs/screenshots/04-settings-theme.png)
+![설정창 외형 탭 — Catppuccin 4 flavor + Custom Theme + AI 자연어 배경 데코 + 커스텀 아이콘 지정](docs/screenshots/04-settings-theme.png)
 
 ### UX
 
