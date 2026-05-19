@@ -4,13 +4,13 @@
 
 ---
 
-## 🏁 v1.0.0 최종 핸드오프 (2026-05-19)
+## 🏁 v1.0.0 첫 안정판 핸드오프 (2026-05-19)
 
 ### 시나리오 변경
 
-**소규모 신뢰권 배포 (n=5~20)** → **안정성·외부 표면 위생에 집중한 마무리**. 적대적 검증 4R에서 "본인용 vs 시장 출시" 이분법이 잘못된 frame이었음을 식별 (실제는 그 중간). 5/19에 다시 한 번 frame 정리 — 시장도 신뢰권도 아닌 **기능 동결 + 최종 정리**.
+**소규모 신뢰권 배포 (n=5~20)** → **안정성·외부 표면 위생에 집중한 정리**. 적대적 검증 4R에서 "본인용 vs 시장 출시" 이분법이 잘못된 frame이었음을 식별 (실제는 그 중간). 5/19에 다시 한 번 frame 정리 — 시장도 신뢰권도 아닌 **기능 동결 + 안정화 (옵시디언 스타일 발전형의 첫 안정판)**.
 
-### 마무리 단계에 처리한 결함 (D-01 / D-06 / D-07 / D-17)
+### 첫 안정판에서 처리한 결함 (D-01 / D-06 / D-07 / D-17)
 
 | ID | 영역 | 처리 |
 |---|---|---|
@@ -38,7 +38,7 @@
 cd C:/Users/WINTEK/Desktop/Personal/GitScope
 npm run build   # NSIS + MSI 생성, 5~10분
 gh release create v1.0.0 `
-  --title "Pepper v1.0.0 — 최종 업데이트" `
+  --title "Pepper v1.0.0 — 첫 안정판" `
   --notes-file CHANGELOG.md `
   "src-tauri/target/release/bundle/nsis/Pepper_1.0.0_x64-setup.exe" `
   "src-tauri/target/release/bundle/msi/Pepper_1.0.0_x64_en-US.msi"

@@ -1,4 +1,4 @@
-# 🌶️ Pepper v1.0.0 — 최종 업데이트
+# 🌶️ Pepper v1.0.0 — 첫 안정판
 
 > 친근한 로컬 Git GUI — 심볼 단위 히스토리 · 온디바이스 AI · 페퍼 배지.
 > Tauri 2 + Rust + React + 로컬 GGUF 모델.

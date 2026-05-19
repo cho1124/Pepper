@@ -1,6 +1,6 @@
 # Pepper 스크린샷·데모 GIF 가이드
 
-> 최종 업데이트(v1.0.0) 출시 시 README와 GitHub Release에 첨부할 스크린샷/GIF 촬영 체크리스트.
+> 첫 안정판(v1.0.0) 출시 시 README와 GitHub Release에 첨부할 스크린샷/GIF 촬영 체크리스트.
 
 ## 저장 위치 & 명명
 
